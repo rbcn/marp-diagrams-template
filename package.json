@@ -1,0 +1,19 @@
+{
+  "name": "marp-diagrams-template",
+  "private": true,
+  "version": "0.1.3",
+  "description": "Marp template that pre-renders Mermaid and Python Diagrams fenced blocks to images.",
+  "type": "module",
+  "scripts": {
+    "clean": "rm -rf dist && mkdir -p dist/assets",
+    "build:all": "node scripts/build-one.mjs",
+    "build:html": "node scripts/build-one.mjs --html-only",
+    "build:pdf": "node scripts/build-one.mjs --pdf-only"
+  },
+  "devDependencies": {
+    "@marp-team/marp-cli": "4.2.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

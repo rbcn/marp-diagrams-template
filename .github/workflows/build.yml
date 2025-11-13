@@ -1,0 +1,86 @@
+# .github/workflows/build.yml
+name: build-slides
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      # kroki の向け先（未設定や疎通NG時は後段で自動フォールバック）
+      KROKI_URL: ${{ secrets.KROKI_URL }}
+      LANG: ja_JP.UTF-8
+      LC_ALL: ja_JP.UTF-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # Graphviz + Chromium 依存 + 日本語/絵文字フォント + ja ロケール生成
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            graphviz \
+            libnss3 \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxrandr2 \
+            libgtk-3-0 \
+            libatk-bridge2.0-0 \
+            libasound2 \
+            libgbm1 \
+            libxshmfence1 \
+            fonts-noto-cjk \
+            fonts-noto-color-emoji \
+            language-pack-ja
+          sudo locale-gen ja_JP.UTF-8
+
+      - name: Install node deps
+        run: npm ci
+
+      - name: Install python deps
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      # secrets.KROKI_URL が未設定 or 応答不良なら kroki.io にフォールバック
+      - name: Resolve KROKI_URL (with fallback)
+        shell: bash
+        run: |
+          set -e
+          TARGET="${KROKI_URL:-https://kroki.io}"
+          if curl -fsS --max-time 3 "$TARGET/health" >/dev/null; then
+            echo "KROKI_URL=$TARGET" >> "$GITHUB_ENV"
+            echo "::notice title=Kroki::Using $TARGET"
+          else
+            echo "KROKI_URL=https://kroki.io" >> "$GITHUB_ENV"
+            echo "::warning title=Kroki::Unhealthy or unset ($TARGET). Fallback to https://kroki.io"
+          fi
+
+      # 既定は src/sample.md。別ファイルで回したい場合は下の行をコメント解除
+      - name: Preprocess & build (HTML + PDF)
+        run: |
+          npm run build:all
+        # 例: 別ファイル
+        # run: npm run build:all -- --md=src/sample2.md
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: slides-${{ github.sha }}
+          path: dist/**

@@ -1,0 +1,13 @@
+# Node / build
+node_modules/
+dist/
+npm-debug.log*
+package-lock.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
