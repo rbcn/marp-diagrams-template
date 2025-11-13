@@ -42,7 +42,7 @@ jobs:
             libxrandr2 \
             libgtk-3-0 \
             libatk-bridge2.0-0 \
-            libasound2 \
+            libasound2t64 \
             libgbm1 \
             libxshmfence1 \
             fonts-noto-cjk \
