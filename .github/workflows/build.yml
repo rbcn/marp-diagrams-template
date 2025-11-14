@@ -1,4 +1,3 @@
-# .github/workflows/build.yml
 name: build-slides
 
 on:
@@ -11,8 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # kroki の向け先（未設定や疎通NG時は後段で自動フォールバック）
+      # Kroki の URL（あれば secrets で上書き。なければ preprocess 側で kroki.io にフォールバック）
       KROKI_URL: ${{ secrets.KROKI_URL }}
+      # 日本語 PDF 対策
       LANG: ja_JP.UTF-8
       LC_ALL: ja_JP.UTF-8
 
@@ -29,7 +29,7 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      # Graphviz + Chromium 依存 + 日本語/絵文字フォント + ja ロケール生成
+      # Graphviz + Chromium が使うライブラリ + 日本語/絵文字フォント
       - name: Install system deps
         run: |
           sudo apt-get update
@@ -46,9 +46,7 @@ jobs:
             libgbm1 \
             libxshmfence1 \
             fonts-noto-cjk \
-            fonts-noto-color-emoji \
-            language-pack-ja
-          sudo locale-gen ja_JP.UTF-8
+            fonts-noto-color-emoji
 
       - name: Install node deps
         run: npm ci
@@ -58,29 +56,32 @@ jobs:
           python -m pip install -U pip
           pip install -r requirements.txt
 
-      # secrets.KROKI_URL が未設定 or 応答不良なら kroki.io にフォールバック
-      - name: Resolve KROKI_URL (with fallback)
+      # ★ここがミソ：src/*.md を全部ビルドして artifacts/ にまとめる
+      - name: Build all markdown in src/
         shell: bash
         run: |
-          set -e
-          TARGET="${KROKI_URL:-https://kroki.io}"
-          if curl -fsS --max-time 3 "$TARGET/health" >/dev/null; then
-            echo "KROKI_URL=$TARGET" >> "$GITHUB_ENV"
-            echo "::notice title=Kroki::Using $TARGET"
-          else
-            echo "KROKI_URL=https://kroki.io" >> "$GITHUB_ENV"
-            echo "::warning title=Kroki::Unhealthy or unset ($TARGET). Fallback to https://kroki.io"
-          fi
+          mkdir -p artifacts
+          shopt -s nullglob
 
-      # 既定は src/sample.md。別ファイルで回したい場合は下の行をコメント解除
-      - name: Preprocess & build (HTML + PDF)
-        run: |
-          npm run build:all
-        # 例: 別ファイル
-        # run: npm run build:all -- --md=src/sample2.md
+          for f in src/*.md; do
+            name=$(basename "$f" .md)
+            echo "==> Building $f"
+
+            # 1ファイル分ビルド（dist/current.* に出力）
+            npm run build:all -- --md="$f"
+
+            # 成果物を deck ごとのフォルダにコピー
+            out_dir="artifacts/$name"
+            mkdir -p "$out_dir"
+
+            cp dist/current.marp.md "$out_dir/$name.marp.md"
+            cp dist/current.html    "$out_dir/$name.html"
+            cp dist/current.pdf     "$out_dir/$name.pdf"
+            cp -r dist/assets       "$out_dir/assets"
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: slides-${{ github.sha }}
-          path: dist/**
+          name: slides
+          path: artifacts/**
