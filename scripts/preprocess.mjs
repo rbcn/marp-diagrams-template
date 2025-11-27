@@ -48,7 +48,7 @@ const RE_DIAGRAMS = /```(?:diagrams|python\s+diagrams)\s*(\{[\s\S]*?\})?\s*\n([\
 // ---- Mermaid は Kroki（KROKI_URL 未設定なら https://kroki.io）
 async function renderMermaid(body, opts) {
   const fmt  = (opts?.format || 'svg').toLowerCase()  // svg|png
-  const hash = createHash('sha1').update('mmd'+body+fmt).digest('hex').slice(0,10)
+  const hash = createHash('sha1').update('mmd' + body + fmt).digest('hex').slice(0, 10)
   const outAbs = join(assetsDir, `mmd-${hash}.${fmt}`)
 
   const kroki = process.env.KROKI_URL || 'https://kroki.io'
@@ -84,7 +84,7 @@ async function renderMermaid(body, opts) {
 async function renderDiagrams(body, opts) {
   const fmt   = ((opts?.format || 'png') + '').toLowerCase()
   const title = opts?.title || 'diagram'
-  const hash  = createHash('sha1').update('pydiag'+body+fmt+title).digest('hex').slice(0,10)
+  const hash  = createHash('sha1').update('pydiag' + body + fmt + title).digest('hex').slice(0, 10)
   const outBaseAbs = join(assetsDir, `diag-${hash}`)   // 拡張子なし
   const outAbs     = `${outBaseAbs}.${fmt}`
 
@@ -120,8 +120,8 @@ for (const t of tasks) {
 }
 for (const t of tasks) md = md.replace(t.ph, t.repl)
 
-// ---- Frontmatter 無ければ付与
-if (!/^---\n[\s\S]*?\n---/m.test(md)) {
+// ---- Frontmatter 無ければ付与（最も堅牢なチェック）
+if (!md.trimStart().startsWith('---')) {
   md = `---\nmarp: true\npaginate: true\n---\n\n${md}`
 }
 
